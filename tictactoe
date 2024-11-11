@@ -1,67 +1,124 @@
+import tkinter as tk
 import random
 
-def display_board(board):
-    print(board[0] + ' | ' + board[1] + ' | ' + board[2])
-    print('--+---+--')
-    print(board[3] + ' | ' + board[4] + ' | ' + board[5])
-    print('--+---+--')
-    print(board[6] + ' | ' + board[7] + ' | ' + board[8])
 
-def player_move(board, player):
-    while True:
-        try:
-            move = int(input(f"Gracz {player}, wybierz pole (1-9): ")) - 1
-            if move >= 0 and move < 9 and board[move] == '-':
-                board[move] = player
-                break
+class TicTacToe:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Tic-Tac-Toe")
+        self.board = ['-' for _ in range(9)]
+        self.current_player = 'X'
+        self.buttons = []
+
+        # Tworzenie przycisków dla planszy
+        for i in range(9):
+            button = tk.Button(
+                self.root, text='', font=('normal', 40), width=5, height=2,
+                command=lambda i=i: self.player_move(i)
+            )
+            button.grid(row=i // 3, column=i % 3)
+            self.buttons.append(button)
+
+        # Przycisk do resetowania gry
+        self.reset_button = tk.Button(self.root, text="Resetuj", command=self.reset_game)
+        self.reset_button.grid(row=3, column=0, columnspan=3)
+
+    def player_move(self, index):
+        # Sprawdzenie, czy to tura gracza X i czy pole jest puste
+        if self.board[index] == '-' and self.current_player == 'X':
+            self.board[index] = 'X'
+            self.buttons[index].config(text='X')
+            if self.check_win('X'):
+                self.show_winner("Gracz X wygrywa!")
             else:
-                print("Nieprawidłowy ruch. Spróbuj ponownie.")
-        except ValueError:
-            print("Proszę podać liczbę od 1 do 9.")
+                # Przełączamy turę na komputer
+                self.current_player = 'O'
+                self.root.after(500, self.computer_move)  # Krótkie opóźnienie dla komputera
 
-def computer_move(board):
-    available_moves = [i for i, x in enumerate(board) if x == '-']
-    move = random.choice(available_moves)
-    board[move] = 'O'
-    print("Komputer wykonał ruch:")
+    def computer_move(self):
+        # Ruch komputera zgodnie z logiką
+        move_made = False
+        
+        # Próba ruchu, aby wygrać lub zablokować gracza
+        for i in range(9):
+            if self.board[i] == '-':
+                self.board[i] = 'O'
+                if self.check_win('O'):
+                    self.buttons[i].config(text='O')
+                    self.show_winner("Komputer wygrywa!")
+                    return
+                self.board[i] = '-'
 
-def check_win(board, player):
-    for i in range(0, 9, 3):
-        if board[i] == board[i+1] == board[i+2] == player:
-            return True
-    for i in range(3):
-        if board[i] == board[i+3] == board[i+6] == player:
-            return True
-    if board[0] == board[4] == board[8] == player:
-        return True
-    if board[2] == board[4] == board[6] == player:
-        return True
-    return False
+        # Blokowanie zwycięstwa gracza X
+        for i in range(9):
+            if self.board[i] == '-':
+                self.board[i] = 'X'
+                if self.check_win('X'):
+                    self.board[i] = 'O'
+                    self.buttons[i].config(text='O')
+                    move_made = True
+                    break
+                self.board[i] = '-'
 
-def start_game():
-    board = ['-' for _ in range(9)]
-    display_board(board)
-    play_with_computer = input("Czy chcesz grać z komputerem? (tak/nie): ").strip().lower() == "tak"
-    
-    current_player = 'X'
-    for _ in range(9):
-        if current_player == 'X':
-            player_move(board, current_player)
+        if not move_made:
+            # Zajęcie środka
+            if self.board[4] == '-':
+                self.board[4] = 'O'
+                self.buttons[4].config(text='O')
+                move_made = True
+
+            # Zajmowanie rogów, jeśli środek zajęty
+            if not move_made:
+                for i in [0, 2, 6, 8]:
+                    if self.board[i] == '-':
+                        self.board[i] = 'O'
+                        self.buttons[i].config(text='O')
+                        move_made = True
+                        break
+
+            # Losowy ruch, jeśli nie ma innych opcji
+            if not move_made:
+                available_moves = [i for i, x in enumerate(self.board) if x == '-']
+                if available_moves:
+                    move = random.choice(available_moves)
+                    self.board[move] = 'O'
+                    self.buttons[move].config(text='O')
+
+        # Sprawdzamy wygraną lub przekazujemy turę z powrotem do gracza
+        if self.check_win('O'):
+            self.show_winner("Komputer wygrywa!")
         else:
-            if play_with_computer:
-                computer_move(board)
-            else:
-                player_move(board, current_player)
+            self.current_player = 'X'
 
-        display_board(board)
+    def check_win(self, player):
+        for i in range(0, 9, 3):
+            if self.board[i] == self.board[i + 1] == self.board[i + 2] == player:
+                return True
+        for i in range(3):
+            if self.board[i] == self.board[i + 3] == self.board[i + 6] == player:
+                return True
+        if self.board[0] == self.board[4] == self.board[8] == player:
+            return True
+        if self.board[2] == self.board[4] == self.board[6] == player:
+            return True
+        return False
 
-        if check_win(board, current_player):
-            print(f"Gracz {current_player} wygrywa!")
-            return
+    def show_winner(self, winner_text):
+        winner_label = tk.Label(self.root, text=winner_text, font=('normal', 20))
+        winner_label.grid(row=4, column=0, columnspan=3)
+        self.disable_buttons()
 
-        current_player = 'O' if current_player == 'X' else 'X'
-    
-    print("Remis!")
+    def disable_buttons(self):
+        for button in self.buttons:
+            button.config(state="disabled")
 
-start_game()
-          
+    def reset_game(self):
+        self.board = ['-' for _ in range(9)]
+        self.current_player = 'X'
+        for button in self.buttons:
+            button.config(text='', state="normal")
+
+
+root = tk.Tk()
+game = TicTacToe(root)
+root.mainloop()
