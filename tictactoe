@@ -1,0 +1,67 @@
+import random
+
+def display_board(board):
+    print(board[0] + ' | ' + board[1] + ' | ' + board[2])
+    print('--+---+--')
+    print(board[3] + ' | ' + board[4] + ' | ' + board[5])
+    print('--+---+--')
+    print(board[6] + ' | ' + board[7] + ' | ' + board[8])
+
+def player_move(board, player):
+    while True:
+        try:
+            move = int(input(f"Gracz {player}, wybierz pole (1-9): ")) - 1
+            if move >= 0 and move < 9 and board[move] == '-':
+                board[move] = player
+                break
+            else:
+                print("Nieprawidłowy ruch. Spróbuj ponownie.")
+        except ValueError:
+            print("Proszę podać liczbę od 1 do 9.")
+
+def computer_move(board):
+    available_moves = [i for i, x in enumerate(board) if x == '-']
+    move = random.choice(available_moves)
+    board[move] = 'O'
+    print("Komputer wykonał ruch:")
+
+def check_win(board, player):
+    for i in range(0, 9, 3):
+        if board[i] == board[i+1] == board[i+2] == player:
+            return True
+    for i in range(3):
+        if board[i] == board[i+3] == board[i+6] == player:
+            return True
+    if board[0] == board[4] == board[8] == player:
+        return True
+    if board[2] == board[4] == board[6] == player:
+        return True
+    return False
+
+def start_game():
+    board = ['-' for _ in range(9)]
+    display_board(board)
+    play_with_computer = input("Czy chcesz grać z komputerem? (tak/nie): ").strip().lower() == "tak"
+    
+    current_player = 'X'
+    for _ in range(9):
+        if current_player == 'X':
+            player_move(board, current_player)
+        else:
+            if play_with_computer:
+                computer_move(board)
+            else:
+                player_move(board, current_player)
+
+        display_board(board)
+
+        if check_win(board, current_player):
+            print(f"Gracz {current_player} wygrywa!")
+            return
+
+        current_player = 'O' if current_player == 'X' else 'X'
+    
+    print("Remis!")
+
+start_game()
+          
