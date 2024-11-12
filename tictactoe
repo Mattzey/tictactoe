@@ -1,6 +1,12 @@
 import tkinter as tk
 import random
 
+WINNING_COMBINATIONS = [
+    (0, 1, 2), (3, 4, 5), (6, 7, 8),
+    (0, 3, 6), (1, 4, 7), (2, 5, 8),
+    (0, 4, 8), (2, 4, 6)
+]
+
 
 class TicTacToe:
     def __init__(self, root):
@@ -8,104 +14,126 @@ class TicTacToe:
         self.root.title("Tic-Tac-Toe")
         self.board = ['-' for _ in range(9)]
         self.current_player = 'X'
-        self.buttons = []
+        self.difficulty = tk.StringVar(value="Średni")
 
-        # Tworzenie przycisków dla planszy
-        for i in range(9):
-            button = tk.Button(
-                self.root, text='', font=('normal', 40), width=5, height=2,
-                command=lambda i=i: self.player_move(i)
-            )
-            button.grid(row=i // 3, column=i % 3)
-            self.buttons.append(button)
+        self.buttons = [
+             self.create_button(i // 3, i % 3, lambda i=i: self.player_move(i))
+             for i in range(9)
+        ]
 
-        # Przycisk do resetowania gry
-        self.reset_button = tk.Button(self.root, text="Resetuj", command=self.reset_game)
-        self.reset_button.grid(row=3, column=0, columnspan=3)
+        # Menu wyboru trudności
+        label = tk.Label(self.root, text="Poziom trudności:")
+        label.grid(row=3, column=0, columnspan=1)
+        difficulty_menu = tk.OptionMenu(
+            self.root,
+            self.difficulty,
+            "Łatwy",
+            "Średni",
+            "Trudny"
+        )
+        difficulty_menu.grid(row=3, column=1, columnspan=2)
+
+        self.reset_button = tk.Button(
+            self.root, text="Resetuj", command=self.reset_game
+        )
+        self.reset_button.grid(row=4, column=0, columnspan=3)
+
+    def create_button(self, row, col, command):
+        button = tk.Button(
+            self.root,
+            text='',
+            font=('normal', 40),
+            width=5,
+            height=2,
+            command=command
+        )
+        button.grid(row=row, column=col)
+        return button
 
     def player_move(self, index):
-        # Sprawdzenie, czy to tura gracza X i czy pole jest puste
         if self.board[index] == '-' and self.current_player == 'X':
-            self.board[index] = 'X'
-            self.buttons[index].config(text='X')
+            self.make_move(index, 'X')
             if self.check_win('X'):
                 self.show_winner("Gracz X wygrywa!")
             else:
-                # Przełączamy turę na komputer
                 self.current_player = 'O'
-                self.root.after(500, self.computer_move)  # Krótkie opóźnienie dla komputera
+                self.root.after(500, self.computer_move)
 
     def computer_move(self):
-        # Ruch komputera zgodnie z logiką
-        move_made = False
-        
-        # Próba ruchu, aby wygrać lub zablokować gracza
+        # Wybór strategii w zależności od poziomu trudności
+        if self.difficulty.get() == "Łatwy":
+            move = self.random_move()
+        elif self.difficulty.get() == "Średni":
+            move = self.block_player() or self.random_move()
+        else:  # Trudny
+            strategies = [
+                self.find_winning_move,
+                self.block_player,
+                self.take_center,
+                self.take_corner,
+                self.random_move
+            ]
+            move = None
+            for strategy in strategies:
+                move = strategy()
+                if move is not None:
+                    break
+
+        if move is not None:
+            self.make_move(move, 'O')
+            if self.check_win('O'):
+                self.show_winner("Komputer wygrywa!")
+            else:
+                self.current_player = 'X'
+
+    def make_move(self, index, player):
+        self.board[index] = player
+        self.buttons[index].config(text=player)
+
+    def find_winning_move(self):
         for i in range(9):
             if self.board[i] == '-':
                 self.board[i] = 'O'
                 if self.check_win('O'):
-                    self.buttons[i].config(text='O')
-                    self.show_winner("Komputer wygrywa!")
-                    return
+                    self.board[i] = '-'
+                    return i
                 self.board[i] = '-'
+        return None
 
-        # Blokowanie zwycięstwa gracza X
+    def block_player(self):
         for i in range(9):
             if self.board[i] == '-':
                 self.board[i] = 'X'
                 if self.check_win('X'):
-                    self.board[i] = 'O'
-                    self.buttons[i].config(text='O')
-                    move_made = True
-                    break
+                    self.board[i] = '-'
+                    return i
                 self.board[i] = '-'
+        return None
 
-        if not move_made:
-            # Zajęcie środka
-            if self.board[4] == '-':
-                self.board[4] = 'O'
-                self.buttons[4].config(text='O')
-                move_made = True
+    def take_center(self):
+        return 4 if self.board[4] == '-' else None
 
-            # Zajmowanie rogów, jeśli środek zajęty
-            if not move_made:
-                for i in [0, 2, 6, 8]:
-                    if self.board[i] == '-':
-                        self.board[i] = 'O'
-                        self.buttons[i].config(text='O')
-                        move_made = True
-                        break
+    def take_corner(self):
+        for i in [0, 2, 6, 8]:
+            if self.board[i] == '-':
+                return i
+        return None
 
-            # Losowy ruch, jeśli nie ma innych opcji
-            if not move_made:
-                available_moves = [i for i, x in enumerate(self.board) if x == '-']
-                if available_moves:
-                    move = random.choice(available_moves)
-                    self.board[move] = 'O'
-                    self.buttons[move].config(text='O')
-
-        # Sprawdzamy wygraną lub przekazujemy turę z powrotem do gracza
-        if self.check_win('O'):
-            self.show_winner("Komputer wygrywa!")
-        else:
-            self.current_player = 'X'
+    def random_move(self):
+        available_moves = [i for i, x in enumerate(self.board) if x == '-']
+        return random.choice(available_moves) if available_moves else None
 
     def check_win(self, player):
-        for i in range(0, 9, 3):
-            if self.board[i] == self.board[i + 1] == self.board[i + 2] == player:
-                return True
-        for i in range(3):
-            if self.board[i] == self.board[i + 3] == self.board[i + 6] == player:
-                return True
-        if self.board[0] == self.board[4] == self.board[8] == player:
-            return True
-        if self.board[2] == self.board[4] == self.board[6] == player:
-            return True
-        return False
+        return any(
+            self.board[a] == self.board[b] == self.board[c] == player
+            for a, b, c in WINNING_COMBINATIONS
+        )
 
     def show_winner(self, winner_text):
-        winner_label = tk.Label(self.root, text=winner_text, font=('normal', 20))
-        winner_label.grid(row=4, column=0, columnspan=3)
+        winner_label = tk.Label(
+            self.root, text=winner_text, font=('normal', 20)
+        )
+        winner_label.grid(row=5, column=0, columnspan=3)
         self.disable_buttons()
 
     def disable_buttons(self):
